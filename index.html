@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StudyBuddy AI — Your Campus Tech Tutor</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Outfit:wght@300;400;500;600&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    /* ─── Reset & Variables ─────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #04090f;
+      --surface:    #080f1a;
+      --card:       #0c1623;
+      --border:     #112238;
+      --border-lit: #1a3d5e;
+      --cyan:       #00d8ff;
+      --cyan-dim:   rgba(0, 216, 255, 0.12);
+      --cyan-glow:  rgba(0, 216, 255, 0.35);
+      --green:      #00ff88;
+      --green-dim:  rgba(0, 255, 136, 0.10);
+      --amber:      #ffb830;
+      --text:       #cde4f7;
+      --text-muted: #4a7a9b;
+      --text-dim:   #1e4060;
+      --radius:     10px;
+      --font-brand: 'Orbitron', monospace;
+      --font-body:  'Outfit', sans-serif;
+      --font-mono:  'Fira Code', monospace;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 15px;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ─── Animated grid background ─────────────────────── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0, 216, 255, 0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 216, 255, 0.025) 1px, transparent 1px);
+      background-size: 44px 44px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* scanline flicker */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 3px,
+        rgba(0,0,0,0.04) 3px,
+        rgba(0,0,0,0.04) 4px
+      );
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ─── Page wrapper ──────────────────────────────────── */
+    .page {
+      position: relative;
+      z-index: 1;
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 48px 24px 80px;
+    }
+
+    /* ─── Header ────────────────────────────────────────── */
+    header {
+      text-align: center;
+      margin-bottom: 56px;
+      animation: fadeUp 0.6s ease both;
+    }
+
+    .logo-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      border: 1px solid var(--border-lit);
+      background: rgba(0,216,255,0.04);
+      border-radius: 100px;
+      padding: 6px 18px;
+      margin-bottom: 24px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--cyan);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .logo-badge .dot {
+      width: 7px; height: 7px;
+      background: var(--green);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--green);
+      animation: pulse 2s ease infinite;
+    }
+
+    h1 {
+      font-family: var(--font-brand);
+      font-size: clamp(28px, 6vw, 52px);
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      line-height: 1.1;
+      background: linear-gradient(135deg, #ffffff 0%, var(--cyan) 60%, var(--green) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 14px;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 14px;
+      font-weight: 400;
+      letter-spacing: 0.03em;
+    }
+
+    .subtitle span {
+      color: var(--cyan);
+      font-family: var(--font-mono);
+    }
+
+    /* ─── Step labels ───────────────────────────────────── */
+    .step-label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .step-num {
+      width: 26px; height: 26px;
+      border-radius: 6px;
+      background: var(--cyan-dim);
+      border: 1px solid rgba(0,216,255,0.3);
+      color: var(--cyan);
+      font-family: var(--font-brand);
+      font-size: 11px;
+      font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .step-text {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    /* ─── Section block ─────────────────────────────────── */
+    .section {
+      margin-bottom: 36px;
+      animation: fadeUp 0.6s ease both;
+    }
+    .section:nth-child(2) { animation-delay: 0.1s; }
+    .section:nth-child(3) { animation-delay: 0.2s; }
+    .section:nth-child(4) { animation-delay: 0.3s; }
+
+    /* ─── Subject grid ──────────────────────────────────── */
+    .subjects-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 10px;
+    }
+
+    .subject-btn {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 12px;
+      cursor: pointer;
+      transition: all 0.22s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+      text-align: left;
+      color: var(--text-muted);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .subject-btn::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: var(--cyan-dim);
+      opacity: 0;
+      transition: opacity 0.22s;
+    }
+
+    .subject-btn:hover {
+      border-color: rgba(0, 216, 255, 0.4);
+      color: var(--text);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 24px rgba(0,0,0,0.4), 0 0 0 1px rgba(0,216,255,0.15);
+    }
+
+    .subject-btn:hover::before { opacity: 1; }
+
+    .subject-btn.active {
+      border-color: var(--cyan);
+      color: var(--text);
+      background: rgba(0, 216, 255, 0.08);
+      box-shadow: 0 0 20px rgba(0,216,255,0.2), 0 0 0 1px rgba(0,216,255,0.3);
+    }
+
+    .subject-btn.active::after {
+      content: '';
+      position: absolute;
+      top: 0; right: 0;
+      width: 0; height: 0;
+      border-style: solid;
+      border-width: 0 22px 22px 0;
+      border-color: transparent var(--cyan) transparent transparent;
+    }
+
+    .subject-icon { font-size: 22px; line-height: 1; position: relative; z-index: 1; }
+
+    .subject-name {
+      font-size: 12.5px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      line-height: 1.3;
+      position: relative;
+      z-index: 1;
+    }
+
+    .subject-tag {
+      font-family: var(--font-mono);
+      font-size: 9.5px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      position: relative;
+      z-index: 1;
+      transition: color 0.22s;
+    }
+
+    .subject-btn.active .subject-tag,
+    .subject-btn:hover .subject-tag { color: var(--cyan); }
+
+    /* ─── Textarea ──────────────────────────────────────── */
+    .question-wrap {
+      position: relative;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 120px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px;
+      padding-bottom: 50px;
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 15px;
+      line-height: 1.65;
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.22s, box-shadow 0.22s;
+    }
+
+    textarea::placeholder { color: var(--text-dim); }
+
+    textarea:focus {
+      border-color: rgba(0,216,255,0.45);
+      box-shadow: 0 0 0 3px rgba(0,216,255,0.08);
+    }
+
+    .char-counter {
+      position: absolute;
+      bottom: 14px;
+      right: 14px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-dim);
+      pointer-events: none;
+    }
+
+    /* ─── Ask button ─────────────────────────────────────── */
+    .ask-btn {
+      width: 100%;
+      padding: 17px 28px;
+      background: linear-gradient(135deg, #007fa8, #00d8ff);
+      border: none;
+      border-radius: var(--radius);
+      color: #020c14;
+      font-family: var(--font-brand);
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.25s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .ask-btn::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.18));
+      opacity: 0;
+      transition: opacity 0.25s;
+    }
+
+    .ask-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px rgba(0,216,255,0.4), 0 2px 8px rgba(0,0,0,0.5);
+    }
+
+    .ask-btn:hover::after { opacity: 1; }
+
+    .ask-btn:active { transform: translateY(0); }
+
+    .ask-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .ask-btn svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+    /* loading spinner inside button */
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2px solid rgba(2,12,20,0.3);
+      border-top-color: #020c14;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+
+    /* ─── Answer card ────────────────────────────────────── */
+    .answer-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      display: none;
+      animation: slideIn 0.4s ease both;
+    }
+
+    .answer-card.visible { display: block; }
+
+    .answer-header {
+      background: rgba(0,216,255,0.05);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .answer-header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .ai-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--green-dim);
+      border: 1px solid rgba(0,255,136,0.25);
+      border-radius: 100px;
+      padding: 4px 12px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--green);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .ai-badge-dot {
+      width: 5px; height: 5px;
+      background: var(--green);
+      border-radius: 50%;
+      box-shadow: 0 0 6px var(--green);
+      animation: pulse 1.5s ease infinite;
+    }
+
+    .subject-tag-pill {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--cyan);
+      background: var(--cyan-dim);
+      border: 1px solid rgba(0,216,255,0.2);
+      border-radius: 100px;
+      padding: 3px 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .copy-btn {
+      background: transparent;
+      border: 1px solid var(--border-lit);
+      border-radius: 6px;
+      padding: 5px 12px;
+      color: var(--text-muted);
+      font-size: 11px;
+      font-family: var(--font-mono);
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-left: auto;
+    }
+
+    .copy-btn:hover {
+      border-color: var(--cyan);
+      color: var(--cyan);
+    }
+
+    .answer-body {
+      padding: 24px;
+      font-size: 15px;
+      line-height: 1.75;
+      color: var(--text);
+      white-space: pre-wrap;
+      min-height: 80px;
+    }
+
+    .answer-body.loading {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      font-size: 13px;
+    }
+
+    .dots-loader {
+      display: flex;
+      gap: 5px;
+    }
+
+    .dots-loader span {
+      width: 7px; height: 7px;
+      background: var(--cyan);
+      border-radius: 50%;
+      animation: bounce 1.2s ease infinite;
+      box-shadow: 0 0 6px var(--cyan);
+    }
+
+    .dots-loader span:nth-child(2) { animation-delay: 0.2s; }
+    .dots-loader span:nth-child(3) { animation-delay: 0.4s; }
+
+    /* ─── Error state ────────────────────────────────────── */
+    .error-msg {
+      background: rgba(255,60,60,0.08);
+      border: 1px solid rgba(255,60,60,0.25);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      color: #ff6b6b;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      display: none;
+      margin-top: 12px;
+    }
+
+    .error-msg.visible { display: block; }
+
+    /* ─── Validation hint ────────────────────────────────── */
+    .hint {
+      font-size: 12px;
+      color: var(--amber);
+      font-family: var(--font-mono);
+      margin-top: 8px;
+      display: none;
+      padding-left: 4px;
+    }
+    .hint.visible { display: block; }
+
+    /* ─── Footer ─────────────────────────────────────────── */
+    footer {
+      text-align: center;
+      margin-top: 72px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 0.08em;
+    }
+
+    footer span { color: var(--cyan); }
+
+    /* ─── Animations ─────────────────────────────────────── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.35; }
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes bounce {
+      0%, 80%, 100% { transform: translateY(0); }
+      40%            { transform: translateY(-7px); }
+    }
+
+    /* ─── Responsive ─────────────────────────────────────── */
+    @media (max-width: 520px) {
+      .subjects-grid { grid-template-columns: repeat(2, 1fr); }
+      h1 { font-size: 28px; }
+      .page { padding: 32px 16px 60px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="page">
+
+  <!-- ── Header ── -->
+  <header>
+    <div class="logo-badge">
+      <div class="dot"></div>
+      <span>Gemini AI · Campus Tech Tutor</span>
+    </div>
+    <h1>StudyBuddy AI</h1>
+    <p class="subtitle">Ask anything. Learn <span>smarter</span>. Ship <span>faster</span>.</p>
+  </header>
+
+  <!-- ── Step 1: Choose Subject ── -->
+  <div class="section">
+    <div class="step-label">
+      <div class="step-num">01</div>
+      <div class="step-text">Pick your topic</div>
+    </div>
+
+    <div class="subjects-grid" id="subjectsGrid">
+
+      <button class="subject-btn" data-subject="Web Development">
+        <div class="subject-icon">🌐</div>
+        <div class="subject-name">Web Development</div>
+        <div class="subject-tag">html · css · js</div>
+      </button>
+
+      <button class="subject-btn" data-subject="Machine Learning">
+        <div class="subject-icon">🤖</div>
+        <div class="subject-name">Machine Learning</div>
+        <div class="subject-tag">models · training</div>
+      </button>
+
+      <button class="subject-btn" data-subject="Data Science">
+        <div class="subject-icon">📊</div>
+        <div class="subject-name">Data Science</div>
+        <div class="subject-tag">pandas · analysis</div>
+      </button>
+
+      <button class="subject-btn" data-subject="Cybersecurity">
+        <div class="subject-icon">🔐</div>
+        <div class="subject-name">Cybersecurity</div>
+        <div class="subject-tag">threats · defense</div>
+      </button>
+
+      <button class="subject-btn" data-subject="Cloud Computing">
+        <div class="subject-icon">☁️</div>
+        <div class="subject-name">Cloud Computing</div>
+        <div class="subject-tag">gcp · aws · azure</div>
+      </button>
+
+      <button class="subject-btn" data-subject="Mobile Development">
+        <div class="subject-icon">📱</div>
+        <div class="subject-name">Mobile Dev</div>
+        <div class="subject-tag">flutter · react native</div>
+      </button>
+
+      <button class="subject-btn" data-subject="Algorithms and Data Structures">
+        <div class="subject-icon">🧮</div>
+        <div class="subject-name">Algorithms & DSA</div>
+        <div class="subject-tag">sorting · graphs</div>
+      </button>
+
+      <button class="subject-btn" data-subject="Databases">
+        <div class="subject-icon">🗄️</div>
+        <div class="subject-name">Databases</div>
+        <div class="subject-tag">sql · nosql</div>
+      </button>
+
+      <button class="subject-btn" data-subject="DevOps and CI/CD">
+        <div class="subject-icon">⚙️</div>
+        <div class="subject-name">DevOps & CI/CD</div>
+        <div class="subject-tag">docker · pipelines</div>
+      </button>
+
+      <button class="subject-btn" data-subject="UI/UX Design">
+        <div class="subject-icon">🎨</div>
+        <div class="subject-name">UI/UX Design</div>
+        <div class="subject-tag">figma · prototyping</div>
+      </button>
+
+    </div>
+    <div class="hint" id="subjectHint">⚠ Please select a topic first.</div>
+  </div>
+
+  <!-- ── Step 2: Type your question ── -->
+  <div class="section">
+    <div class="step-label">
+      <div class="step-num">02</div>
+      <div class="step-text">Type your question</div>
+    </div>
+
+    <div class="question-wrap">
+      <textarea
+        id="questionInput"
+        placeholder="e.g. What is the difference between SQL and NoSQL databases?"
+        maxlength="500"
+      ></textarea>
+      <div class="char-counter"><span id="charCount">0</span>/500</div>
+    </div>
+    <div class="hint" id="questionHint">⚠ Please type your question.</div>
+  </div>
+
+  <!-- ── Step 3: Ask ── -->
+  <div class="section">
+    <div class="step-label">
+      <div class="step-num">03</div>
+      <div class="step-text">Get your answer</div>
+    </div>
+
+    <button class="ask-btn" id="askBtn" onclick="askStudyBuddy()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+        <path d="M2 17l10 5 10-5"/>
+        <path d="M2 12l10 5 10-5"/>
+      </svg>
+      Ask StudyBuddy
+    </button>
+
+    <div class="error-msg" id="errorMsg"></div>
+  </div>
+
+  <!-- ── Answer ── -->
+  <div class="answer-card" id="answerCard">
+    <div class="answer-header">
+      <div class="answer-header-left">
+        <div class="ai-badge"><div class="ai-badge-dot"></div>StudyBuddy</div>
+        <div class="subject-tag-pill" id="answerSubjectTag">—</div>
+      </div>
+      <button class="copy-btn" onclick="copyAnswer()">Copy</button>
+    </div>
+    <div class="answer-body" id="answerBody"></div>
+  </div>
+
+  <!-- ── Footer ── -->
+  <footer>
+    Powered by <span>Gemini API</span> · Built with ❤️ for the hackathon · <span>StudyBuddy AI</span>
+  </footer>
+
+</div>
+
+<script>
+  // ─── State ───────────────────────────────────────────────
+  let selectedSubject = null;
+
+  // ─── Subject selection ───────────────────────────────────
+  document.getElementById('subjectsGrid').addEventListener('click', e => {
+    const btn = e.target.closest('.subject-btn');
+    if (!btn) return;
+
+    document.querySelectorAll('.subject-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedSubject = btn.dataset.subject;
+
+    // Update textarea placeholder
+    const placeholders = {
+      'Web Development':                  'e.g. What is the difference between flexbox and CSS grid?',
+      'Machine Learning':                 'e.g. How does gradient descent work?',
+      'Data Science':                     'e.g. What is the difference between a mean and median?',
+      'Cybersecurity':                    'e.g. What is a SQL injection attack?',
+      'Cloud Computing':                  'e.g. What is the difference between IaaS, PaaS, and SaaS?',
+      'Mobile Development':               'e.g. What is the difference between Flutter and React Native?',
+      'Algorithms and Data Structures':   'e.g. Explain Big O notation with an example.',
+      'Databases':                        'e.g. When should I use NoSQL instead of SQL?',
+      'DevOps and CI/CD':                 'e.g. What does a Docker container actually do?',
+      'UI/UX Design':                     'e.g. What is the difference between wireframe and prototype?',
+    };
+    document.getElementById('questionInput').placeholder =
+      placeholders[selectedSubject] || 'Type your question here...';
+
+    hideHint('subjectHint');
+  });
+
+  // ─── Character counter ───────────────────────────────────
+  document.getElementById('questionInput').addEventListener('input', function () {
+    document.getElementById('charCount').textContent = this.value.length;
+    if (this.value.trim()) hideHint('questionHint');
+  });
+
+  // ─── Helpers ─────────────────────────────────────────────
+  function showHint(id)  { document.getElementById(id).classList.add('visible'); }
+  function hideHint(id)  { document.getElementById(id).classList.remove('visible'); }
+  function showError(msg) {
+    const el = document.getElementById('errorMsg');
+    el.textContent = '⚠ ' + msg;
+    el.classList.add('visible');
+  }
+  function hideError() {
+    document.getElementById('errorMsg').classList.remove('visible');
+  }
+
+  // ─── Main function ───────────────────────────────────────
+  async function askStudyBuddy() {
+    const question = document.getElementById('questionInput').value.trim();
+
+    // Validate
+    let valid = true;
+    if (!selectedSubject)   { showHint('subjectHint');  valid = false; }
+    if (!question)          { showHint('questionHint'); valid = false; }
+    if (!valid) return;
+
+    hideError();
+
+    // UI → loading state
+    setLoading(true);
+    showAnswerLoading();
+
+    try {
+      // ── API call to your backend server ──
+      // Make sure server.js is running on port 3000
+      const response = await fetch('/api/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subject: selectedSubject, question }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || `Server error (${response.status})`);
+      }
+
+      const data = await response.json();
+      showAnswer(data.answer, selectedSubject);
+
+    } catch (err) {
+      hideAnswerCard();
+      showError(err.message || 'Could not reach the server. Make sure it is running.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ─── UI state helpers ─────────────────────────────────────
+  function setLoading(on) {
+    const btn = document.getElementById('askBtn');
+    btn.disabled = on;
+    btn.innerHTML = on
+      ? `<div class="spinner"></div> Thinking...`
+      : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+           <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+           <path d="M2 17l10 5 10-5"/>
+           <path d="M2 12l10 5 10-5"/>
+         </svg> Ask StudyBuddy`;
+  }
+
+  function showAnswerLoading() {
+    const card = document.getElementById('answerCard');
+    const body = document.getElementById('answerBody');
+    card.classList.add('visible');
+    body.className = 'answer-body loading';
+    body.innerHTML = `
+      <div class="dots-loader">
+        <span></span><span></span><span></span>
+      </div>
+      Generating answer...
+    `;
+    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function showAnswer(text, subject) {
+    document.getElementById('answerSubjectTag').textContent = subject;
+    const body = document.getElementById('answerBody');
+    body.className = 'answer-body';
+    body.textContent = text;
+  }
+
+  function hideAnswerCard() {
+    document.getElementById('answerCard').classList.remove('visible');
+  }
+
+  function copyAnswer() {
+    const text = document.getElementById('answerBody').textContent;
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.querySelector('.copy-btn');
+      btn.textContent = '✓ Copied!';
+      btn.style.color = 'var(--green)';
+      btn.style.borderColor = 'var(--green)';
+      setTimeout(() => {
+        btn.textContent = 'Copy';
+        btn.style.color = '';
+        btn.style.borderColor = '';
+      }, 2000);
+    });
+  }
+
+  // Also allow Ctrl+Enter to submit
+  document.getElementById('questionInput').addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') askStudyBuddy();
+  });
+</script>
+</body>
+</html>
