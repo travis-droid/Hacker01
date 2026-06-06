@@ -59,37 +59,37 @@ Student's question:
 Your answer:
 `.trim();
 
-  // Try Google Generative AI first (primary)
+  // Try Groq first (primary)
   try {
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-    const result = await model.generateContent(prompt);
-    return res.status(200).json({ answer: result.response.text(), provider: 'Google Generative AI' });
-  } catch (googleErr) {
-    console.error('Google Generative AI error:', googleErr.message);
+    const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+    const groqResponse = await groq.chat.completions.create({
+      messages: [{ role: 'user', content: prompt }],
+      model: 'mixtral-8x7b-32768',
+      max_tokens: 1024,
+    });
+    const answer = groqResponse.choices[0]?.message?.content || 'No response generated';
+    return res.status(200).json({ answer, provider: 'Groq' });
+  } catch (groqErr) {
+    console.error('Groq error:', groqErr.message);
     
-    // If quota exceeded or 429, fallback to Groq (secondary)
-    if (googleErr.message.includes('quota') || googleErr.message.includes('429') || googleErr.message.includes('RESOURCE_EXHAUSTED')) {
-      console.log('Quota exceeded on Google AI, falling back to Groq...');
+    // If Groq fails, fallback to Google Generative AI (secondary)
+    if (groqErr.message.includes('quota') || groqErr.message.includes('429') || groqErr.message.includes('RESOURCE_EXHAUSTED') || groqErr.status === 429) {
+      console.log('Groq quota exceeded, falling back to Google Generative AI...');
       
       try {
-        const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-        const groqResponse = await groq.chat.completions.create({
-          messages: [{ role: 'user', content: prompt }],
-          model: 'mixtral-8x7b-32768', // Fast, reliable model with good free tier
-          max_tokens: 1024,
-        });
-        const answer = groqResponse.choices[0]?.message?.content || 'No response generated';
-        return res.status(200).json({ answer, provider: 'Groq (Fallback)' });
-      } catch (groqErr) {
-        console.error('Groq fallback error:', groqErr.message);
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+        const result = await model.generateContent(prompt);
+        return res.status(200).json({ answer: result.response.text(), provider: 'Google Generative AI (Fallback)' });
+      } catch (googleErr) {
+        console.error('Google Generative AI fallback error:', googleErr.message);
         return res.status(503).json({ error: 'Both AI providers are temporarily unavailable. Please try again later.' });
       }
     }
     
-    // Handle other Google errors
-    if (googleErr.message.includes('API_KEY')) {
-      return res.status(500).json({ error: 'Invalid Google API key. Check your Vercel environment variables.' });
+    // Handle other Groq errors
+    if (groqErr.message.includes('API_KEY') || groqErr.message.includes('Unauthorized')) {
+      return res.status(500).json({ error: 'Invalid Groq API key. Check your Vercel environment variables.' });
     }
     return res.status(500).json({ error: 'AI service error. Please try again.' });
   }
