@@ -64,7 +64,7 @@ Your answer:
     const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
     const groqResponse = await groq.chat.completions.create({
       messages: [{ role: 'user', content: prompt }],
-      model: 'mixtral-8x7b-32768',
+      model: 'llama-3.1-70b-versatile',
       max_tokens: 1024,
     });
     const answer = groqResponse.choices[0]?.message?.content || 'No response generated';
